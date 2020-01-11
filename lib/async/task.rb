@@ -251,7 +251,7 @@ module Async
 		end
 		
 		def make_fiber(&block)
-			Fiber.new do |*arguments|
+			Fiber.new(blocking: false) do |*arguments|
 				set!
 				
 				begin
