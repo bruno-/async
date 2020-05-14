@@ -86,6 +86,8 @@ module Async
 			@fiber = make_fiber(&block)
 		end
 		
+		attr :fiber
+		
 		def to_s
 			"\#<#{self.description} (#{@status})>"
 		end
@@ -251,7 +253,7 @@ module Async
 		end
 		
 		def make_fiber(&block)
-			Fiber.new(blocking: false) do |*arguments|
+			@reactor.fiber do |*arguments|
 				set!
 				
 				begin

@@ -110,5 +110,13 @@ module Async
 				warn "Blocking for #{duration.round(4)}s in #{what}." if $VERBOSE
 			end
 		end
+		
+		def fiber(&block)
+			task = Task.new(&block)
+			
+			task.resume
+			
+			return task.fiber
+		end
 	end
 end

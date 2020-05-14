@@ -95,6 +95,14 @@ module Async
 		
 		attr :scheduler
 		
+		def fiber(&block)
+			if @scheduler
+				Fiber.new(blocking: false, &block)
+			else
+				Fiber.new(&block)
+			end
+		end
+		
 		def logger
 			@logger ||= Console.logger
 		end
