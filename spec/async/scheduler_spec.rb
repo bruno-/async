@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 
 require 'async/scheduler'
+require 'async/barrier'
 require 'net/http'
 
 RSpec.describe Async::Scheduler, if: Async::Scheduler.supported? do
@@ -37,8 +38,7 @@ RSpec.describe Async::Scheduler, if: Async::Scheduler.supported? do
 			input, output = IO.pipe
 			
 			reactor.async do
-				# This causes fd leakage for some reason:
-				# sleep(0.001)
+				sleep(0.001)
 				
 				message.each_char do |character|
 					output.write(character)
@@ -53,11 +53,22 @@ RSpec.describe Async::Scheduler, if: Async::Scheduler.supported? do
 		end
 		
 		it "can fetch website using Net::HTTP" do
-			reactor.async do
-				response = Net::HTTP.get(URI "https://www.codeotaku.com/index")
-				
-				expect(response).to_not be_nil
+			barrier = Async::Barrier.new
+			events = []
+			
+			3.times do |i|
+				barrier.async do
+					events << i
+					response = Net::HTTP.get(URI "https://www.codeotaku.com/index")
+					expect(response).to_not be_nil
+					events << i
+				end
 			end
+			
+			barrier.wait
+			
+			# The requests all get started concurrently:
+			expect(events.first(3)).to be == [0, 1, 2]
 		end
 	end
 end

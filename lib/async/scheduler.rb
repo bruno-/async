@@ -36,18 +36,27 @@ module Async
 			@reactor = reactor
 			@blocking_started_at = nil
 			
-			@ios = ::ObjectSpace::WeakMap.new
-			@wrappers = ::ObjectSpace::WeakMap.new
+			@wrappers = nil
+			@ios = nil
 		end
 		
 		def set!
 			if thread = Thread.current
+				@ios = {}
+				@wrappers = {}
+				
 				thread.scheduler = self
 			end
 		end
 		
 		def clear!
 			if thread = Thread.current
+				# Because these instances are created with `autoclose: false`, this does not close the underlying file descriptor:
+				@ios.each_value(&:close)
+				
+				@wrappers = nil
+				@ios = nil
+				
 				thread.scheduler = nil
 			end
 		end
