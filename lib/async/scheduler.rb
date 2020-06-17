@@ -52,7 +52,7 @@ module Async
 		def clear!
 			if thread = Thread.current
 				# Because these instances are created with `autoclose: false`, this does not close the underlying file descriptor:
-				@ios.each_value(&:close)
+				@ios&.each_value(&:close)
 				
 				@wrappers = nil
 				@ios = nil
