@@ -34,15 +34,11 @@ module Async
 		
 		def initialize(reactor)
 			@reactor = reactor
-			@blocking_started_at = nil
-			
 			@wrappers = nil
-			@ios = nil
 		end
 		
 		def set!
 			if thread = Thread.current
-				@ios = {}
 				@wrappers = {}
 				
 				thread.scheduler = self
@@ -52,10 +48,9 @@ module Async
 		def clear!
 			if thread = Thread.current
 				# Because these instances are created with `autoclose: false`, this does not close the underlying file descriptor:
-				@ios&.each_value(&:close)
+				# @ios&.each_value(&:close)
 				
 				@wrappers = nil
-				@ios = nil
 				
 				thread.scheduler = nil
 			end
@@ -65,59 +60,38 @@ module Async
 			@wrappers[io] ||= Wrapper.new(io, @reactor)
 		end
 		
-		private def from_fd(fd)
-			@ios[fd] ||= ::IO.for_fd(fd, autoclose: false)
-		end
-		
-		def wait_readable(io, timeout = nil)
+		def io_wait(io, events, timeout = nil)
 			wrapper = from_io(io)
-			wrapper.wait_readable(timeout)
+			
+			if events == IO::READABLE
+				if wrapper.wait_readable(timeout)
+					return IO::READABLE
+				end
+			elsif events == IO::WRITABLE
+				if wrapper.wait_writable(timeout)
+					return IO::WRITABLE
+				end
+			else
+				if wrapper.wait_any(timeout)
+					return events
+				end
+			end
+			
+			return false
 		ensure
 			wrapper.reactor = nil
 		end
 		
-		def wait_writable(io, timeout = nil)
-			wrapper = from_io(io)
-			wrapper.wait_writable(timeout)
-		ensure
-			wrapper.reactor = nil
-		end
-		
-		def wait_any(io, events, timeout = nil)
-			wrapper = from_io(io)
-			wrapper.wait_any(timeout)
-		ensure
-			wrapper.reactor = nil
-		end
-		
-		def wait_readable_fd(fd)
-			wait_readable(from_fd(fd))
-		end
-
-		def wait_writable_fd(fd)
-			wait_writable(from_fd(fd))
-		end
-
-		def wait_for_single_fd(fd, events, duration)
-			wait_any(from_fd(fd), events, duration)
-		end
-		
-		def wait_sleep(duration)
+		def kernel_sleep(duration)
 			@reactor.sleep(duration)
 		end
 		
-		def enter_blocking_region
-			@blocking_started_at = Clock.now
+		def block(blocker)
+			@reactor.block(blocker)
 		end
 		
-		def exit_blocking_region
-			duration = Clock.now - @blocking_started_at
-			
-			if duration > 0.1
-				what = caller.first
-				
-				warn "Blocking for #{duration.round(4)}s in #{what}." if $VERBOSE
-			end
+		def unblock(blocker, fiber)
+			@reactor.unblock(blocker, fiber)
 		end
 		
 		def fiber(&block)

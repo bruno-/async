@@ -71,4 +71,19 @@ RSpec.describe Async::Scheduler, if: Async::Scheduler.supported? do
 			expect(events.first(3)).to be == [0, 1, 2]
 		end
 	end
+	
+	context "with queue" do
+		subject {Thread::Queue.new}
+		let(:item) {"Hello World"}
+		
+		it "can pass items between thread and fiber" do
+			Async do
+				expect(subject.pop).to be == item
+			end
+			
+			Thread.new do
+				subject.push(item)
+			end.join
+		end
+	end
 end

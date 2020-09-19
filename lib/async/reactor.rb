@@ -91,9 +91,26 @@ module Async
 			
 			@interrupted = false
 			@guard = Mutex.new
+			@blocked = 0
+			@unblocked = []
 		end
 		
 		attr :scheduler
+		
+		# @reentrant Not thread safe.
+		def block(blocker)
+			@blocked += 1
+			Fiber.yield
+		ensure
+			@blocked -= 1
+		end
+		
+		# @reentrant Thread safe.
+		def unblock(blocker, fiber)
+			@guard.synchronize do
+				@unblocked << fiber
+			end
+		end
 		
 		def fiber(&block)
 			if @scheduler
@@ -174,7 +191,7 @@ module Async
 		
 		def finished?
 			# TODO I'm not sure if checking `@running.empty?` is really required.
-			super && @ready.empty? && @running.empty?
+			super && @ready.empty? && @running.empty? && @blocked.zero?
 		end
 		
 		# Run one iteration of the event loop.
@@ -192,6 +209,14 @@ module Async
 				end
 				
 				@running.clear
+			end
+			
+			unless @blocked.zero?
+				@guard.synchronize do
+					while fiber = @unblocked.pop
+						fiber.resume if fiber.alive?
+					end
+				end
 			end
 			
 			if @ready.empty?
