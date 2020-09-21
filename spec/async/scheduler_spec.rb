@@ -72,6 +72,26 @@ RSpec.describe Async::Scheduler, if: Async::Scheduler.supported? do
 		end
 	end
 	
+	context "with thread" do
+		let(:queue) {Thread::Queue.new}
+		subject {Thread.new{queue.pop}}
+		
+		it "can join thread" do
+			waiting = 0
+			
+			3.times do
+				Async do
+					waiting += 1
+					subject.join
+					waiting -= 1
+				end
+			end
+			
+			expect(waiting).to be == 3
+			queue.close
+		end
+	end
+	
 	context "with queue" do
 		subject {Thread::Queue.new}
 		let(:item) {"Hello World"}
