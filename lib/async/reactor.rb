@@ -98,17 +98,32 @@ module Async
 		attr :scheduler
 		
 		# @reentrant Not thread safe.
-		def block(blocker)
-			@blocked += 1
-			Fiber.yield
+		def block(blocker, timeout)
+			fiber = Fiber.current
+			
+			if timeout
+				timer = self.after(timeout) do
+					if fiber.alive?
+						fiber.resume(false)
+					end
+				end
+			end
+			
+			begin
+				@blocked += 1
+				Fiber.yield
+			ensure
+				@blocked -= 1
+			end
 		ensure
-			@blocked -= 1
+			timer&.cancel
 		end
 		
 		# @reentrant Thread safe.
 		def unblock(blocker, fiber)
 			@guard.synchronize do
 				@unblocked << fiber
+				@selector.wakeup
 			end
 		end
 		
@@ -212,10 +227,14 @@ module Async
 			end
 			
 			unless @blocked.zero?
+				unblocked = Array.new
+				
 				@guard.synchronize do
-					while fiber = @unblocked.pop
-						fiber.resume if fiber.alive?
-					end
+					unblocked, @unblocked = @unblocked, unblocked
+				end
+				
+				while fiber = unblocked.pop
+					fiber.resume if fiber.alive?
 				end
 			end
 			
@@ -242,7 +261,7 @@ module Async
 				interval = timeout
 			end
 			
-			# logger.debug(self) {"Selecting with #{@children&.size} children with interval = #{interval ? interval.round(2) : 'infinite'}..."}
+			# logger.info(self) {"Selecting with #{@children&.size} children with interval = #{interval ? interval.round(2) : 'infinite'}..."}
 			if monitors = @selector.select(interval)
 				monitors.each do |monitor|
 					monitor.value.resume

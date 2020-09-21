@@ -86,12 +86,15 @@ module Async
 			@reactor.sleep(duration)
 		end
 		
-		def block(blocker)
-			@reactor.block(blocker)
+		def block(blocker, timeout)
+			@reactor.block(blocker, timeout)
 		end
 		
 		def unblock(blocker, fiber)
 			@reactor.unblock(blocker, fiber)
+		end
+		
+		def close
 		end
 		
 		def fiber(&block)

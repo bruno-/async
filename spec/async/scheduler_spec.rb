@@ -82,6 +82,7 @@ RSpec.describe Async::Scheduler, if: Async::Scheduler.supported? do
 			end
 			
 			Thread.new do
+				expect(Thread.current).to be_blocking
 				subject.push(item)
 			end.join
 		end
