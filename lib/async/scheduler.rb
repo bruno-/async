@@ -31,6 +31,8 @@ module Async
 				false
 			end
 		end
+
+		attr_reader :wrappers
 		
 		def initialize(reactor)
 			@reactor = reactor
@@ -51,6 +53,7 @@ module Async
 		end
 		
 		private def from_io(io)
+			puts "Scheduler#from_io io object_id: #{io.object_id}, fileno #{io.fileno}"
 			@wrappers[io] ||= Wrapper.new(io, @reactor)
 		end
 		

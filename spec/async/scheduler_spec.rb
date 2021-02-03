@@ -92,6 +92,28 @@ RSpec.describe Async::Scheduler, if: Async::Scheduler.supported? do
 			expect(events.first(3)).to be == [0, 1, 2]
 		end
 	end
+
+	specify do
+		input, output = IO.pipe
+
+		puts "input object_id: #{input.object_id}, fileno #{input.fileno}"
+		puts "output object_id: #{output.object_id}, fileno #{output.fileno}"
+
+		5.times do |i|
+			reader = reactor.async do
+				input.read(1)
+			end
+			
+			output.write(".")
+			reader.wait
+
+			# Scheduler wrappers are not reused, they just grow.
+			expect(reactor.scheduler.wrappers.size).to eq i + 1
+		end
+
+		input.close
+		output.close
+	end
 	
 	context "with thread" do
 		let(:queue) {Thread::Queue.new}
