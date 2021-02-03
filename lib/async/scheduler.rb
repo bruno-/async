@@ -53,6 +53,7 @@ module Async
 		end
 		
 		private def from_io(io)
+			puts "Scheduler io object_id: #{io.object_id}"
 			@wrappers[io] ||= Wrapper.new(io, @reactor)
 		end
 		

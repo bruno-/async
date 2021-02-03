@@ -117,6 +117,30 @@ RSpec.describe Async::Scheduler, if: Async::Scheduler.supported? do
 			
 			expect(reactor.scheduler.wrappers.size).to be == 0
 		end
+
+		specify do
+			GC.disable # weakmap objects are not cleaned
+
+			input, output = IO.pipe
+
+			puts "input object_id: #{input.object_id}"
+			puts "output object_id: #{output.object_id}"
+
+			5.times do |i|
+				reader = reactor.async do
+					input.read(1)
+				end
+				
+				output.write(".")
+				reader.wait
+
+				# Scheduler wrappers are not reused, they just grow.
+				expect(reactor.scheduler.wrappers.size).to eq i + 1
+			end
+
+			input.close
+			output.close
+		end
 	end
 	
 	context "with thread" do
